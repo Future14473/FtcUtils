@@ -4,23 +4,26 @@ import com.qualcomm.robotcore.eventloop.opmode.OpMode
 import com.qualcomm.robotcore.util.RobotLog
 import kotlinx.coroutines.*
 import org.firstinspires.ftc.robotcore.internal.opmode.TelemetryInternal
+import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * Base class for user defined coroutine op modes for awesome concurrency stuff.
  *
- * A starting [CoroutineContext] must be supplied in [initContext].
+ * An `initialContext` can be provided.
  */
 @Suppress("KDocMissingDocumentation")
-abstract class CoroutineOpMode : OpMode(), CoroutineScope {
+abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutineContext) : OpMode(), CoroutineScope {
 
     private var inited = false
     private val job = Job()
-    final override lateinit var coroutineContext: CoroutineContext
-        private set
+    final override val coroutineContext: CoroutineContext = initialContext + job
     //Waits for start
     private val startGate: CoroutineGate = CoroutineGate()
+    //background processes
+    private val backgroundProcesses: Queue<Job> = ConcurrentLinkedQueue()
     //exception handling
     private lateinit var thread: Thread
     private var exception: Throwable? = null
@@ -28,18 +31,6 @@ abstract class CoroutineOpMode : OpMode(), CoroutineScope {
         exception = throwable
         thread.interrupt()
     }
-
-    /**
-     * Runs right before [runOpMode], in the non-suspending world.
-     *
-     * You may initialize executors or thread stuff here, and
-     * return the initial [CoroutineContext] that will be used.
-     *
-     * If you are clueless return [EmptyCoroutineContext] which will use
-     * default settings. (This may impact the speed of the rest of your android app if it
-     * hogs processing time, though)
-     */
-    protected abstract fun initContext(): CoroutineContext
 
     /**
      * Override this method and place your awesome coroutine code here.
@@ -54,6 +45,19 @@ abstract class CoroutineOpMode : OpMode(), CoroutineScope {
      * IMPORTANT: Use to clean up any thread resources here.
      */
     protected abstract fun doStop()
+
+    /**
+     * [launch]es a new coroutine that runs the given [block], that the op mode will wait for
+     * to complete before stopping by itself.
+     *
+     * This is so that users do not have to worry about joining for a process that just runs in the background.
+     */
+    protected fun backgroundProcess(
+        context: CoroutineContext = EmptyCoroutineContext,
+        block: suspend CoroutineScope.() -> Unit
+    ) {
+        backgroundProcesses.add(launch(context, block = block))
+    }
 
     /**
      * Pauses the linear op mode until start has been pressed,
@@ -86,14 +90,15 @@ abstract class CoroutineOpMode : OpMode(), CoroutineScope {
     final override fun init() {
         //reset
         inited = true
-        coroutineContext = initContext() + job
         thread = Thread.currentThread()
 
         launch(exceptionHandler) {
             RobotLog.v("CoroutineOpMode starting...")
             try {
                 runOpMode()
-                RobotLog.v("CoroutineOpMode ended successfully.")
+                while (backgroundProcesses.isNotEmpty()) {
+                    backgroundProcesses.remove().join()
+                }
                 requestOpModeStop()
             } finally {
                 RobotLog.v("CoroutineOpMode terminating...")
@@ -118,7 +123,7 @@ abstract class CoroutineOpMode : OpMode(), CoroutineScope {
             if (inited) {
                 //reset
                 exception = null
-                job.cancel("OpMode Manual Stop")
+                job.cancel("OpMode Stop")
                 runBlocking {
                     job.join()
                 }
@@ -148,15 +153,12 @@ abstract class CoroutineOpMode : OpMode(), CoroutineScope {
  *
  * The most common op mode.
  */
-abstract class ThreadPoolCoroutineOpMode(private val nThreads: Int = 4) : CoroutineOpMode() {
+@UseExperimental(ObsoleteCoroutinesApi::class)
+abstract class ThreadPoolCoroutineOpMode(private val nThreads: Int = 4) : CoroutineOpMode(
+    newFixedThreadPoolContext(nThreads, "ThreadPoolCoroutineOpMode dispatcher")
+) {
 
     private var executorCoroutineDispatcher: ExecutorCoroutineDispatcher? = null
-    @UseExperimental(ObsoleteCoroutinesApi::class)
-    final override fun initContext(): CoroutineContext {
-        executorCoroutineDispatcher = newFixedThreadPoolContext(nThreads, "ThreadPoolCoroutineOpMode dispatcher")
-        return executorCoroutineDispatcher!!
-    }
-
     final override fun doStop() {
         executorCoroutineDispatcher?.close()
     }

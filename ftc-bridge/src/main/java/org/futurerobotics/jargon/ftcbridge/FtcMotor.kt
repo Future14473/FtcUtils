@@ -13,6 +13,8 @@ import com.qualcomm.robotcore.hardware.DcMotor as InnerMotor
  */
 class FtcMotor(val motor: DcMotorEx, val ticksPerRev: Double) : DcMotor {
 
+    /** Gets raw encoder position. */
+    val encoderPosition: Int get() = motor.currentPosition
     override val maxVoltage: Double get() = 12.0
     override var voltage: Double
         get() = motor.power * maxVoltage
