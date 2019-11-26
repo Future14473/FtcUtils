@@ -1,165 +1,191 @@
 package org.futurerobotics.jargon.coroutines
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode
+import com.qualcomm.robotcore.hardware.TimestampedI2cData
 import com.qualcomm.robotcore.util.RobotLog
 import kotlinx.coroutines.*
 import org.firstinspires.ftc.robotcore.internal.opmode.TelemetryInternal
-import java.util.*
-import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.coroutineContext
 
 /**
  * Base class for user defined coroutine op modes for awesome concurrency stuff.
+ * This is meant to emulate `LinearOpMode`, while using coroutines.
+ *
+ * Instead of `Thread.interrupted`, the entire coroutine will be cancelled when
+ * the op mode is stopped. **In this case,`CancellationException` will be thrown whenever (most)
+ * suspend functions are called.** If cleanup is wanted, use either a try/finally block,
+ * or explicitly check for coroutines being active using [CoroutineContext.isActive].
  *
  * An `initialContext` can be provided.
  */
-@Suppress("KDocMissingDocumentation")
-abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutineContext) : OpMode(), CoroutineScope {
+abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutineContext) : OpMode() {
 
-    private var inited = false
-    private val job = Job()
-    final override val coroutineContext: CoroutineContext = initialContext + job
+    private val mainScope = CoroutineScope(initialContext)
+    private lateinit var opModeJob: Job
     //Waits for start
-    private val startGate: CoroutineGate = CoroutineGate()
-    //background processes
-    private val backgroundProcesses: Queue<Job> = ConcurrentLinkedQueue()
+    private val startedDeferred = CompletableDeferred<Unit>() //is thread safe
     //exception handling
-    private lateinit var thread: Thread
     private var exception: Throwable? = null
-    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-        exception = throwable
-        thread.interrupt()
-    }
 
     /**
      * Override this method and place your awesome coroutine code here.
      *
-     * You can [cancel] this coroutine scope to end the coroutine prematurely.
+     * THe coroutine may be cancelled if stop is manually pressed. **In this case,`CancellationException` will be
+     * thrown whenever (most) suspend functions are called.**
+     *
+     * One may typically start this function using `= coroutineScope { ... }` to launch a series of coroutines that
+     * will live and die together (see [coroutineScope]).
+     *
+     * Other notes:
+     *
+     * The convention for coroutine functions is:
+     * - `suspend fun foo()` if it performs some actions that may suspend the current
+     *   coroutine. (Use `launch { foo() } if concurrency is really wanted ).
+     * - `fun CoroutineScope.foo()` if it immediately returns but _launches_ another coroutine (using
+     *   the supplied scope).
      */
     protected abstract suspend fun runOpMode()
 
     /**
-     * Runs after [runOpMode], in the non-suspending world.
+     * Suspends the current coroutine op mode until start has been pressed.
      *
-     * IMPORTANT: Use to clean up any thread resources here.
-     */
-    protected abstract fun doStop()
-
-    /**
-     * [launch]es a new coroutine that runs the given [block], that the op mode will wait for
-     * to complete before stopping by itself.
+     * Can be called from _any_ coroutine.
      *
-     * This is so that users do not have to worry about joining for a process that just runs in the background.
-     */
-    protected fun backgroundProcess(
-        context: CoroutineContext = EmptyCoroutineContext,
-        block: suspend CoroutineScope.() -> Unit
-    ) {
-        backgroundProcesses.add(launch(context, block = block))
-    }
-
-    /**
-     * Pauses the linear op mode until start has been pressed,
-     * or job is canceled.
+     * @throws CancellationException if coroutine is cancelled.
      */
     protected suspend fun waitForStart() {
-        startGate.wait()
+        startedDeferred.await()
     }
 
     /**
-     * Allows other coroutines to run a bit, as if it has nothing better to do.
+     * Allows other coroutines to run a bit, when you have nothing to do (calls [yield]).
      *
-     * (calls [yield])
+     * Spin-waiting is generally discouraged for coroutines, but sometimes you have no better option.
      *
-     * Also may throw [CancellationException] if the op mode has ended.
-     *
-     * Can when you have nothing to do.
+     * @throws CancellationException if coroutine is cancelled.
      */
+    @Throws(CancellationException::class)
     protected suspend fun idle() {
         yield()
     }
 
     /**
-     * Has the op mode been started?
-     * @see waitForStart
+     * Sleeps for the given amount of milliseconds, or until the coroutine is cancelled.
+     *
+     * This simply calls [delay].
+     *
+     * @throws CancellationException if coroutine is cancelled.
      */
-    protected val isStarted: Boolean get() = startGate.isOpen
-
-    @UseExperimental(ObsoleteCoroutinesApi::class)
-    final override fun init() {
-        //reset
-        inited = true
-        thread = Thread.currentThread()
-
-        launch(exceptionHandler) {
-            RobotLog.v("CoroutineOpMode starting...")
-            try {
-                runOpMode()
-                while (backgroundProcesses.isNotEmpty()) {
-                    backgroundProcesses.remove().join()
-                }
-                requestOpModeStop()
-            } finally {
-                RobotLog.v("CoroutineOpMode terminating...")
-            }
-        }
+    protected suspend fun sleep(milliseconds: Long) {
+        delay(milliseconds)
     }
 
+    /**
+     * If the op mode is started and still running.
+     *
+     * This will [idle] (call [yield]) if is active, as this is intended for use in loops.
+     *
+     * This will _not_ throw [CancellationException] if coroutine is cancelled.
+     */
+    protected suspend fun opModeIsActive(): Boolean {
+        val isActive = isStarted && coroutineContext.isActive
+        if (isActive)
+            try {
+                idle()
+            } catch (_: CancellationException) {
+            }
+        return isActive
+    }
+
+    /**
+     * Has the op mode been started (start button is pressed)?
+     * @see waitForStart
+     */
+    protected val isStarted: Boolean get() = startedDeferred.isCompleted
+
+    /** From the normal op mode */
+    final override fun init() {
+        if (::opModeJob.isInitialized) {
+            throw IllegalStateException(
+                "Cannot reuse same *instance* of CoroutineOpMode. Use a class, or @TeleOp/@Autonomous annotations instead."
+            )
+        }
+        launchOpMode()
+    }
+
+    /** From the normal op mode */
     final override fun init_loop() {
         doLoop()
     }
 
+    /** From the normal op mode */
     final override fun start() {
-        startGate.open()
+        startedDeferred.complete(Unit)
     }
 
+    /** From the normal op mode */
     final override fun loop() {
         doLoop()
     }
 
+    /** From the normal op mode */
     final override fun stop() {
-        try {
-            if (inited) {
-                //reset
-                exception = null
-                job.cancel("OpMode Stop")
-                runBlocking {
-                    job.join()
-                }
+        if (::opModeJob.isInitialized) {
+            opModeJob.cancel("Op mode stop")
+            runBlocking {
+                opModeJob.join()
             }
-        } finally {
-            doStop()
         }
     }
 
     private fun doLoop() {
         Thread.yield()
-        Thread.sleep(1)
-        exception?.let { throw it }
+        try {
+            Thread.sleep(1)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+        // if there is a exception in user code, throw it.
+        exception?.let {
+            throw it
+        }
     }
 
+    private fun launchOpMode() {
+        opModeJob = mainScope.launch {
+            RobotLog.v("CoroutineOpMode starting...")
+            try {
+                runOpMode()
+                requestOpModeStop()
+            } catch (e: CancellationException) {
+                RobotLog.d("CoroutineOpMode received an CancellationException; shutting down this coroutine op mode")
+                throw e //normal.
+            } catch (e: Exception) {
+                exception = e
+            } finally {
+                //from linear op mode
+                //flush telemetry
+                TimestampedI2cData.suppressNewHealthWarningsWhile {
+                    val telemetry = telemetry
+                    if (telemetry is TelemetryInternal) {
+                        telemetry.msTransmissionInterval = 0
+                        telemetry.tryUpdateIfDirty()
+                    }
+                }
+                RobotLog.v("...terminating CoroutineOpMode")
+            }
+        }
+    }
+
+    /***/
     final override fun internalPostInitLoop() {
         (telemetry as? TelemetryInternal)?.tryUpdateIfDirty()
     }
 
+    /***/
     final override fun internalPostLoop() {
         (telemetry as? TelemetryInternal)?.tryUpdateIfDirty()
-    }
-}
-
-/**
- * A [CoroutineOpMode] that uses a thread pool of size [nThreads] as its dispatcher.
- *
- * The most common op mode.
- */
-@UseExperimental(ObsoleteCoroutinesApi::class)
-abstract class ThreadPoolCoroutineOpMode(private val nThreads: Int = 4) : CoroutineOpMode(
-    newFixedThreadPoolContext(nThreads, "ThreadPoolCoroutineOpMode dispatcher")
-) {
-
-    private var executorCoroutineDispatcher: ExecutorCoroutineDispatcher? = null
-    final override fun doStop() {
-        executorCoroutineDispatcher?.close()
     }
 }

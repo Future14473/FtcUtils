@@ -25,6 +25,8 @@ dependencies {
     compileOnly "org.openftc:hardware-stock:5.3"
     compileOnly "org.openftc:robotcore-stock:5.3"
     api "org.openftc:rev-extensions-2:1.2"
+
+    testImplementation "junit:junit:4.12"
 }
 
 android {
