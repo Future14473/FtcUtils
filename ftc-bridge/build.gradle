@@ -44,6 +44,11 @@ android {
 
     }
 
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
     buildTypes {
         release {
             minifyEnabled false
@@ -86,7 +91,7 @@ publishing {
             artifactId = "ftc-bridge"
 
             artifact sourcesJar
-            artifact javadocJar
+//            artifact javadocJar
 
             from components.android
         }
