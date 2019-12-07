@@ -79,9 +79,8 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
      * Sleeps for the given amount of milliseconds, or until the coroutine is cancelled.
      *
      * This simply calls [delay].
-     *
-     * @throws CancellationException if coroutine is cancelled.
      */
+    @Throws(CancellationException::class)
     protected suspend fun sleep(milliseconds: Long) {
         delay(milliseconds)
     }

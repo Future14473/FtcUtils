@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.hardware.Servo as InnerServo
 
 private typealias DoubleRange = ClosedFloatingPointRange<Double>
 
-val DoubleRange.size get() = endInclusive - start
+private val DoubleRange.size get() = endInclusive - start
 
 /**
  * A wrapper around a [Ftc robotcore Servo][InnerServo] that maps angles to servo positions.
@@ -13,7 +13,8 @@ val DoubleRange.size get() = endInclusive - start
  * A specified [servoRange] must be given that corresponds to an [angleRange].
  */
 class FtcServo(
-    private val servo: InnerServo,
+    /** The servo this wraps around. */
+    val servo: InnerServo,
     private val servoRange: DoubleRange,
     private val angleRange: DoubleRange
 ) : Servo {
