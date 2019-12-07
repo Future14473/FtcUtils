@@ -91,7 +91,7 @@ publishing {
             artifactId = "ftc-bridge"
 
             artifact sourcesJar
-//            artifact javadocJar
+            artifact javadocJar
 
             from components.android
         }
