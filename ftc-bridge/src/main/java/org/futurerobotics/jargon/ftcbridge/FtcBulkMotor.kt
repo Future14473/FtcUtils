@@ -1,19 +1,19 @@
 package org.futurerobotics.jargon.ftcbridge
 
 import org.futurerobotics.jargon.blocks.Block
-import org.futurerobotics.jargon.blocks.control.MotorInterface
+import org.futurerobotics.jargon.blocks.control.MotorsBlock
 import org.futurerobotics.jargon.linalg.Vec
 import org.futurerobotics.jargon.linalg.mapToVec
 import org.futurerobotics.jargon.math.TAU
 import org.openftc.revextensions2.RevBulkData
 
 /**
- * A [MotorInterface] block that uses [getBulkData] to read data.
+ * A [MotorsBlock] block that uses [getBulkData] to read data.
  */
 class FtcBulkMotor(
-    private val getBulkData: () -> RevBulkData,
-    motors: List<FtcMotor>
-) : Block(Processing.OUT_FIRST), MotorInterface {
+    motors: List<FtcMotor>,
+    private val getBulkData: () -> RevBulkData
+) : Block(Processing.OUT_FIRST), MotorsBlock {
 
     override val motorPositions: Output<Vec> = newOutput()
     override val motorVelocities: Output<Vec> = newOutput()

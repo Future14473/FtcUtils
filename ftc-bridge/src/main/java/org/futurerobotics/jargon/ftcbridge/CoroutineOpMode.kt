@@ -25,7 +25,11 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
     private val mainScope = CoroutineScope(initialContext)
     private lateinit var opModeJob: Job
     //Waits for start
-    private val startedDeferred = CompletableDeferred<Unit>() //is thread safe
+    private val startedDeferred = CompletableDeferred<Unit>()
+    /**
+     * A [Deferred] that is complete when the start button has been pressed.
+     */
+    val started: Deferred<Unit> get() = startedDeferred
     //exception handling
     private var exception: Throwable? = null
 
@@ -56,7 +60,7 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
      * @throws CancellationException if coroutine is cancelled.
      */
     protected suspend fun waitForStart() {
-        startedDeferred.await()
+        started.await()
     }
 
     /**
@@ -103,7 +107,7 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
      * Has the op mode been started (start button is pressed)?
      * @see waitForStart
      */
-    protected val isStarted: Boolean get() = startedDeferred.isCompleted
+    protected val isStarted: Boolean get() = started.isCompleted
 
     /** From the normal op mode */
     final override fun init() {
