@@ -5,14 +5,13 @@ import org.futurerobotics.jargon.blocks.control.MotorsBlock
 import org.futurerobotics.jargon.linalg.Vec
 import org.futurerobotics.jargon.linalg.mapToVec
 import org.futurerobotics.jargon.math.TAU
-import org.openftc.revextensions2.RevBulkData
 
 /**
  * A [MotorsBlock] block that uses [getBulkData] to read data.
  */
 class FtcBulkMotor(
     motors: List<FtcMotor>,
-    private val getBulkData: () -> RevBulkData
+    private val getBulkData: () -> MotorBulkData
 ) : Block(Processing.OUT_FIRST), MotorsBlock {
 
     override val motorPositions: Output<Vec> = newOutput()

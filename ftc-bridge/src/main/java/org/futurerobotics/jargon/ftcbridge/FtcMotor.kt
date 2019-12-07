@@ -31,7 +31,7 @@ class FtcMotor(val motor: DcMotorEx, val ticksPerRev: Double) : DcMotor {
     }
 
     override fun init() {
-        resetPosition()
+        motor.mode = InnerMotor.RunMode.RUN_WITHOUT_ENCODER
         motor.zeroPowerBehavior = InnerMotor.ZeroPowerBehavior.FLOAT
         motor.motorType.ticksPerRev = ticksPerRev
         motor.power = 0.0
