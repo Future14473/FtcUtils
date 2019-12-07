@@ -1,4 +1,4 @@
-package org.futurerobotics.jargon.coroutines
+package org.futurerobotics.jargon.ftcbridge
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode
 import com.qualcomm.robotcore.hardware.TimestampedI2cData
