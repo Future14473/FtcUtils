@@ -3,13 +3,14 @@ package org.futurerobotics.jargon.ftcbridge
 import org.futurerobotics.jargon.blocks.Block
 import org.futurerobotics.jargon.blocks.control.MotorsBlock
 import org.futurerobotics.jargon.linalg.Vec
+import org.futurerobotics.jargon.linalg.get
 import org.futurerobotics.jargon.linalg.mapToVec
 import org.futurerobotics.jargon.math.TAU
 
 /**
  * A [MotorsBlock] block that uses [getBulkData] to read data.
  */
-class FtcBulkMotor(
+class BulkMotorBlock(
     motors: List<FtcMotor>,
     private val getBulkData: () -> MotorBulkData
 ) : Block(Processing.OUT_FIRST), MotorsBlock {
@@ -26,6 +27,11 @@ class FtcBulkMotor(
         }
         motorVelocities.set = motors.mapToVec {
             data.getMotorVelocity(it.motor) / it.ticksPerRev * TAU
+        }
+        motorVolts.get?.let { volts ->
+            motors.forEachIndexed { i, motor ->
+                motor.voltage = volts[i]
+            }
         }
     }
 }
