@@ -23,13 +23,14 @@ import kotlin.coroutines.coroutineContext
 abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutineContext) : OpMode() {
 
     private val mainScope = CoroutineScope(initialContext)
-    private lateinit var opModeJob: Job
-    //Waits for start
-    private val startedDeferred = CompletableDeferred<Unit>()
+    private var opModeJob: Job? = null
+    @Volatile
+    private var startedDeferred: CompletableDeferred<Unit>? = null
     /**
      * A [Deferred] that is complete when the start button has been pressed.
      */
-    val started: Deferred<Unit> get() = startedDeferred
+    val started: Deferred<Unit>
+        get() = startedDeferred ?: throw IllegalStateException("Op mode has not yet been initialized!!")
     //exception handling
     private var exception: Throwable? = null
 
@@ -110,11 +111,8 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
 
     /** From the normal op mode */
     final override fun init() {
-        if (::opModeJob.isInitialized) {
-            throw IllegalStateException(
-                "Cannot reuse same *instance* of CoroutineOpMode. Use a class, or @TeleOp/@Autonomous annotations instead."
-            )
-        }
+        exception = null
+        startedDeferred = CompletableDeferred()
         launchOpMode()
     }
 
@@ -125,7 +123,7 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
 
     /** From the normal op mode */
     final override fun start() {
-        startedDeferred.complete(Unit)
+        startedDeferred!!.complete(Unit)
     }
 
     /** From the normal op mode */
@@ -135,11 +133,14 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
 
     /** From the normal op mode */
     final override fun stop() {
-        if (::opModeJob.isInitialized) {
-            opModeJob.cancel("Op mode stop")
+        opModeJob?.let {
+            it.cancel("Op mode stop")
             runBlocking {
-                opModeJob.join()
+                it.join()
             }
+            opModeJob = null
+            exception = null
+            startedDeferred = null
         }
     }
 
