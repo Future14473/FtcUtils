@@ -67,8 +67,8 @@ class MultipleBulkData(data: List<RevBulkData>) : MotorBulkData {
 
     companion object {
         private val revDataModuleField =
-            RevBulkData::class.java.getField("module").apply { isAccessible = true }
+            RevBulkData::class.java.getDeclaredField("module").apply { isAccessible = true }
         private val lynxControllerModuleField =
-            LynxController::class.java.getField("module").apply { isAccessible = true }
+            LynxController::class.java.getDeclaredField("module").apply { isAccessible = true }
     }
 }
