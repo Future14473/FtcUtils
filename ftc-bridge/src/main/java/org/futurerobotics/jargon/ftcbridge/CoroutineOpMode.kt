@@ -159,12 +159,15 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
 
     private fun launchOpMode() {
         opModeJob = mainScope.launch {
-            RobotLog.v("CoroutineOpMode starting...")
+            RobotLog.vv("CoroutineOpMode", "CoroutineOpMode starting...")
             try {
                 runOpMode()
                 requestOpModeStop()
             } catch (e: CancellationException) {
-                RobotLog.d("CoroutineOpMode received an CancellationException; shutting down this coroutine op mode")
+                RobotLog.dd(
+                    "CoroutineOpMode",
+                    "CoroutineOpMode received an CancellationException; shutting down this coroutine op mode"
+                )
                 throw e //normal.
             } catch (e: Exception) {
                 exception = e
@@ -178,7 +181,7 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
                         telemetry.tryUpdateIfDirty()
                     }
                 }
-                RobotLog.v("...terminating CoroutineOpMode")
+                RobotLog.vv("CoroutineOpMode", "...terminating CoroutineOpMode")
             }
         }
     }
