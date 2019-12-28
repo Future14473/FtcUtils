@@ -1,17 +1,17 @@
 package org.futurerobotics.jargon.ftcbridge
 
 import com.qualcomm.robotcore.hardware.DcMotorEx
-import org.futurerobotics.jargon.hardware.DcMotor
+import org.futurerobotics.jargon.hardware.Motor
 import org.futurerobotics.jargon.math.TAU
 import com.qualcomm.robotcore.hardware.DcMotor as InnerMotor
 
 /**
- * A wrapper around a ftc [DcMotorEx] for a jargon [DcMotor].
+ * A wrapper around a ftc [DcMotorEx] for a jargon [Motor].
  *
  * @param [motor] the motor.
  * @param [ticksPerRev] the ticks per revolution.
  */
-class FtcMotor(val motor: DcMotorEx, val ticksPerRev: Double) : DcMotor {
+class FtcMotor(val motor: DcMotorEx, val ticksPerRev: Double) : Motor {
 
     /** Gets raw encoder position. */
     val encoderPosition: Int get() = motor.currentPosition
