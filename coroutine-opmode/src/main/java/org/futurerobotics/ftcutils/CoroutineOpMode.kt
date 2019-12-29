@@ -1,4 +1,4 @@
-package org.futurerobotics.jargon.ftcbridge
+package org.futurerobotics.ftcutils
 
 import com.qualcomm.robotcore.eventloop.opmode.OpMode
 import com.qualcomm.robotcore.hardware.TimestampedI2cData
@@ -11,7 +11,7 @@ import kotlin.coroutines.coroutineContext
 
 /**
  * Base class for user defined coroutine op modes for awesome concurrency stuff.
- * This is meant to emulate `LinearOpMode`, while using coroutines.
+ * This is meant to be similar to `LinearOpMode`, while using coroutines.
  *
  * Instead of `Thread.interrupted`, the entire coroutine will be cancelled when
  * the op mode is stopped. **In this case,`CancellationException` will be thrown whenever (most)
@@ -176,7 +176,8 @@ abstract class CoroutineOpMode(initialContext: CoroutineContext = EmptyCoroutine
                         telemetry.tryUpdateIfDirty()
                     }
                 }
-                RobotLog.vv("CoroutineOpMode", "...terminating CoroutineOpMode")
+                RobotLog
+                    .vv("CoroutineOpMode", "...terminating CoroutineOpMode")
             }
         }
     }
