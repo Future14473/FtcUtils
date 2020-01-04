@@ -48,10 +48,9 @@ class MultipleBulkData(data: List<RevBulkData>) : MotorBulkData {
             .getMotorVelocity(motor.portNumber)
             .correctSign(motor)
 
-    override fun isMotorAtTargetPosition(motor: DcMotor): Boolean {
-        return getCorrespondingBulkData(motor)
+    override fun isMotorAtTargetPosition(motor: DcMotor): Boolean =
+        getCorrespondingBulkData(motor)
             .isMotorAtTargetPosition(motor.portNumber)
-    }
 
     private fun getCorrespondingBulkData(motor: DcMotor): RevBulkData =
         allData[lynxControllerModuleField[motor.controller] as LynxModule]
@@ -59,7 +58,7 @@ class MultipleBulkData(data: List<RevBulkData>) : MotorBulkData {
 
     private val DcMotor.operationalDirection: DcMotorSimple.Direction
         get() = direction.let {
-            if (motorType.orientation == Rotation.CCW) it.inverted() else it
+            if (motorType.orientation === Rotation.CCW) it.inverted() else it
         }
 
     private fun Int.correctSign(motor: DcMotor): Int =
