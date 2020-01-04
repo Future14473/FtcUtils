@@ -157,14 +157,13 @@ abstract class CoroutineOpMode : OpMode() {
         startJob = Job()
         val scope = CoroutineScope(getCoroutineContext())
         opModeJob = scope.launch {
-            RobotLog.vv("CoroutineOpMode", "CoroutineOpMode starting...")
+            RobotLog.vv(TAG, "CoroutineOpMode starting...")
             try {
                 runOpMode()
                 requestOpModeStop()
             } catch (e: CancellationException) {
                 RobotLog.dd(
-                    "CoroutineOpMode",
-                    "CoroutineOpMode received an CancellationException; shutting down this coroutine op mode"
+                    TAG, "CoroutineOpMode received an CancellationException; shutting down this coroutine op mode"
                 )
                 //may have manually cancelled scope.
                 requestOpModeStop()
@@ -181,7 +180,7 @@ abstract class CoroutineOpMode : OpMode() {
                         telemetry.tryUpdateIfDirty()
                     }
                 }
-                RobotLog.vv("CoroutineOpMode", "...terminating CoroutineOpMode")
+                RobotLog.vv(TAG, "...terminating CoroutineOpMode")
             }
         }
     }
@@ -194,5 +193,9 @@ abstract class CoroutineOpMode : OpMode() {
     /***/
     final override fun internalPostLoop() {
         (telemetry as? TelemetryInternal)?.tryUpdateIfDirty()
+    }
+
+    private companion object {
+        const val TAG = "CoroutineOpMode"
     }
 }
